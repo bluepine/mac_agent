@@ -181,7 +181,7 @@ int handle_mouse_event(int fd, int argc, const char **argv){
   
   mouseCursorPosition.x = (CGFloat)atoi(argv[3])+(CGFloat)[[bound objectForKey: @"X"] floatValue];
   mouseCursorPosition.y = (CGFloat)atoi(argv[4])+(CGFloat)[[bound objectForKey: @"Y"] floatValue];
-  NSLog(@"%d, %f, %f\n", mouseType, (double)(mouseCursorPosition.x), (double)(mouseCursorPosition.y));
+  //NSLog(@"%d, %f, %f\n", mouseType, (double)(mouseCursorPosition.x), (double)(mouseCursorPosition.y));
   CGEventRef m_e = CGEventCreateMouseEvent(NULL, mouseType, mouseCursorPosition, mouseButton);
   if(m_e == NULL){
     goto  handle_mouse_event_exit;

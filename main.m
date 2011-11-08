@@ -90,7 +90,7 @@ static int handle_cmd(int fd, char * cmd){
   return ret;
 }
 
-int main (int argc, const char * argv[]){
+int test_main (int argc, const char * argv[]){
   int fd;
   char cmd_buf[1024];
   const char *output = "output";
@@ -129,7 +129,7 @@ int main (int argc, const char * argv[]){
   return 0;
 }
 
-int test_main (int argc, const char * argv[])
+int main (int argc, const char * argv[])
 {
   int sockfd, newsockfd, portno;
   socklen_t clilen;

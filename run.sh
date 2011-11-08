@@ -1,2 +1,3 @@
 make
-./mac_agent 
+./mac_agent  50008 &
+python client.py
