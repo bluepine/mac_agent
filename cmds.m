@@ -76,7 +76,7 @@ static struct key_table_entry special_key_table[] = {
   {0, UINT16_MAX}
 };
 
-int handle_keyevent(int fd, int argc, const char **argv){
+int handle_key_event(int fd, int argc, const char **argv){
   if(argc != 3){
     return -1;
   }
@@ -90,12 +90,12 @@ int handle_keyevent(int fd, int argc, const char **argv){
 
   const NSDictionary *entry = find_window(argv[0]);
   if(entry == nil){
-    goto  handle_keyevent_exit;
+    goto  handle_key_event_exit;
   }
   pid_t pid = [[entry objectForKey: @"kCGWindowOwnerPID"] unsignedIntValue];
   ProcessSerialNumber psn;
   if(GetProcessForPID (pid, &psn) < 0){
-    goto  handle_keyevent_exit;
+    goto  handle_key_event_exit;
   }
   if(!strcmp("down", argv[argc-1])){
     down = true;
@@ -109,14 +109,18 @@ int handle_keyevent(int fd, int argc, const char **argv){
   if(!special_key_table[i].name){
     code = keyCodeForChar(argv[1][0]);
     if(code == UINT16_MAX){
-      goto handle_keyevent_exit;
+      goto handle_key_event_exit;
     }
   }
 
   key_e = CGEventCreateKeyboardEvent (NULL, code, down);
   CGEventPostToPSN(&psn, key_e);
   ret = 0;
- handle_keyevent_exit:
+ handle_key_event_exit:
   [pool drain];
   return ret;
+}
+
+int handle_mouse_event(int fd, int argc, const char **argv){
+  return 0;
 }

@@ -27,7 +27,7 @@ struct cmd_entry{
 
 static struct cmd_entry cmd_list[]={
   {"screenshot", handle_screenshot},
-  {"key", handle_keyevent},
+  {"key", handle_key_event},
   {NULL, NULL}
 };
 
@@ -70,7 +70,11 @@ static int handle_cmd(int fd, char * cmd){
     if(!strcmp(cmd, cmd_list[i].cmd)){
       write(fd, "{", 1);
       ret = cmd_list[i].handler(fd, argc, argv);
-      write(fd, "}", 1);
+      if(ret){
+	write(fd, "!", 1);
+      }else{
+	write(fd, "}", 1);
+      }
       break;
     }
   }
@@ -103,6 +107,8 @@ int main (int argc, const char * argv[]){
   sprintf(cmd_buf, "%s", "key,EVE Online,enter,down");
   handle_cmd(fd, cmd_buf);
   sprintf(cmd_buf, "%s", "key,EVE Online,enter,up");
+  handle_cmd(fd, cmd_buf);
+  sprintf(cmd_buf, "%s", "screenshot,EVE Online,eee.png");
   handle_cmd(fd, cmd_buf);
   close(fd);
   return 0;
