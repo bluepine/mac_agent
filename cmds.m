@@ -17,11 +17,11 @@
 #import "cmds.h"
 #import "utility.h"
 
-static const NSDictionary * find_eve_window(void){
+static const NSDictionary * find_window(const char * name){
   const NSDictionary *entry = nil;
   id pool=[NSAutoreleasePool new];
   NSString *kWindowNameKey = @"kCGWindowName";
-  NSString *WindowName = @"EVE Online";
+  NSString *WindowName = [[NSString alloc] initWithUTF8String:name];
   CGWindowListOption listOptions = kCGWindowListOptionOnScreenOnly;//kCGWindowListOptionAll;
   CFArrayRef windowList = CGWindowListCopyWindowInfo(listOptions, kCGNullWindowID);
   int arrayCount = CFArrayGetCount(windowList);
@@ -34,7 +34,7 @@ static const NSDictionary * find_eve_window(void){
     }
   }
   if(i==arrayCount){
-    NSLog(@"eve window not found!\n");
+    NSLog(@"%@ window not found!\n", WindowName);
     entry = nil;
   }
   [pool drain];
@@ -42,14 +42,17 @@ static const NSDictionary * find_eve_window(void){
 }
 
 //parameter: path to store screen shot file
-int handle_screenshot(int fd, char * arg){
+int handle_screenshot(int fd, int argc, const char **argv){
+  if(argc != 2){
+    return -1;
+  }
   id pool=[NSAutoreleasePool new];    
 
-  const NSDictionary *entry = find_eve_window();
+  const NSDictionary *entry = find_window(argv[0]);
 
   if(entry != nil){
     CGImageRef windowImage = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow, [[entry objectForKey: (id)kCGWindowNumber]unsignedIntValue], kCGWindowImageDefault | kCGWindowImageBoundsIgnoreFraming);
-    CGImageWriteToFile(windowImage, [ NSString stringWithUTF8String:arg ]);
+    CGImageWriteToFile(windowImage, [ NSString stringWithUTF8String:argv[1] ]);
   }
 
   [pool drain];
@@ -60,13 +63,32 @@ int handle_screenshot(int fd, char * arg){
   }
 }
 
-int handle_keyevent(int fd, char *arg){
+struct key_table_entry{
+  const char * name;
+  CGKeyCode code;
+};
+static struct key_table_entry special_key_table[] = {
+  {"shift", (CGKeyCode)56},
+  {"ctrl", (CGKeyCode)59},
+  {"cmd", (CGKeyCode)55},
+  {"option", (CGKeyCode)58},
+  {"enter", (CGKeyCode)76},
+  {0, UINT16_MAX}
+};
+
+int handle_keyevent(int fd, int argc, const char **argv){
+  if(argc != 3){
+    return -1;
+  }
+
   id pool=[NSAutoreleasePool new];
   int ret = -1;
+  BOOL down = false;
   CGEventRef key_e;
-  CGKeyCode c = (CGKeyCode)0;
+  int i;
+  CGKeyCode code;
 
-  const NSDictionary *entry = find_eve_window();
+  const NSDictionary *entry = find_window(argv[0]);
   if(entry == nil){
     goto  handle_keyevent_exit;
   }
@@ -75,11 +97,25 @@ int handle_keyevent(int fd, char *arg){
   if(GetProcessForPID (pid, &psn) < 0){
     goto  handle_keyevent_exit;
   }
-  key_e = CGEventCreateKeyboardEvent (NULL, c, true);
+  if(!strcmp("down", argv[argc-1])){
+    down = true;
+  }
+  for(i=0; special_key_table[i].name; i++){
+    if(!strcmp(special_key_table[i].name, argv[1])){
+      code = special_key_table[i].code;
+      break;
+    }
+  }
+  if(!special_key_table[i].name){
+    code = keyCodeForChar(argv[1][0]);
+    if(code == UINT16_MAX){
+      goto handle_keyevent_exit;
+    }
+  }
+
+  key_e = CGEventCreateKeyboardEvent (NULL, code, down);
   CGEventPostToPSN(&psn, key_e);
-  key_e = CGEventCreateKeyboardEvent (NULL, c, false);
-  CGEventPostToPSN(&psn, key_e);
-  
+  ret = 0;
  handle_keyevent_exit:
   [pool drain];
   return ret;

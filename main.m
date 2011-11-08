@@ -22,7 +22,7 @@
 
 struct cmd_entry{
   const char * cmd;
-  int (*handler)(int fd, char * args);
+  int (*handler)(int fd, int argc, const char ** argv);
 };
 
 static struct cmd_entry cmd_list[]={
@@ -38,30 +38,51 @@ static void error(const char *msg)
 }
 
 static int handle_cmd(int fd, char * cmd){
-  char *token, *string;
-  int i;
+  const char **argv;
+  int i, j;
+  int argc;
+  int ret = -1;
   printf("cmd %s received\n", cmd);
-  string = cmd;
-  token = strsep(&string, " ");
-  if(token == NULL){
-    error("wrong command");      
-  }
-  if(strlen(token)==0){
-    return -1;
-  }
-  if(!strcmp(token, "quit")){
-    return 1;
-  }
-  for(i=0; cmd_list[i].cmd; i++){
-    if(!strcmp(token, cmd_list[i].cmd)){
-      write(fd, "{", 1);
-      int ret = cmd_list[i].handler(fd, string);
-      write(fd, "}", 1);
-      return ret;
+  argc = 0;
+  for(i=0; cmd[i]; i++){
+    if(cmd[i]==','){
+      argc++;
     }
   }
-  printf("cmd %s not supported\n", token);
-  return 0;
+  if(argc>0){
+    argv = malloc(sizeof(char *)*argc);
+    j = 0;
+    for(i=0; cmd[i]; i++){
+      if(cmd[i]==','){
+	cmd[i]=0;
+	argv[j]=&(cmd[i+1]);
+	j++;
+      }
+    }
+  }else{
+    argv=0;
+  }
+
+  if(!strcmp(cmd, "quit")){
+    goto handle_cmd_exit;
+  }
+  for(i=0; cmd_list[i].cmd; i++){
+    if(!strcmp(cmd, cmd_list[i].cmd)){
+      write(fd, "{", 1);
+      ret = cmd_list[i].handler(fd, argc, argv);
+      write(fd, "}", 1);
+      break;
+    }
+  }
+  if(!cmd_list[i].cmd){
+    printf("cmd %s not supported\n", cmd);
+    goto handle_cmd_exit;
+  }
+ handle_cmd_exit:
+  if(argv){
+    free(argv);
+  }
+  return ret;
 }
 
 int main (int argc, const char * argv[]){
@@ -70,12 +91,18 @@ int main (int argc, const char * argv[]){
   const char *output = "output";
   //const char * output = "output";
   //sprintf(cmd_buf, "%s", "screenshot e.png");
-  sprintf(cmd_buf, "%s", "key z down");
   fd = open(output, O_WRONLY | O_CREAT, 0777);
   if(fd < 0){
     perror("error opening ");
     return -1;
   }
+  sprintf(cmd_buf, "%s", "key,EVE Online,z,down");
+  handle_cmd(fd, cmd_buf);
+  sprintf(cmd_buf, "%s", "key,EVE Online,z,up");
+  handle_cmd(fd, cmd_buf);
+  sprintf(cmd_buf, "%s", "key,EVE Online,enter,down");
+  handle_cmd(fd, cmd_buf);
+  sprintf(cmd_buf, "%s", "key,EVE Online,enter,up");
   handle_cmd(fd, cmd_buf);
   close(fd);
   return 0;

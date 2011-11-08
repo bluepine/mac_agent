@@ -17,6 +17,6 @@ HOST = 'localhost'
 PORT = 50008
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((HOST, PORT))
-data = exec_cmd(s, 'screenshot e.png');
+data = exec_cmd(s, 'screenshot,e.png');
 s.send("quit")
 s.close()
