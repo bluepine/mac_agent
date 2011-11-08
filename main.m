@@ -27,6 +27,7 @@ struct cmd_entry{
 
 static struct cmd_entry cmd_list[]={
   {"screenshot", handle_screenshot},
+  {"key", handle_keyevent},
   {NULL, NULL}
 };
 
@@ -68,7 +69,8 @@ int main (int argc, const char * argv[]){
   char cmd_buf[1024];
   const char *output = "output";
   //const char * output = "output";
-  sprintf(cmd_buf, "%s", "screenshot e.png");
+  //sprintf(cmd_buf, "%s", "screenshot e.png");
+  sprintf(cmd_buf, "%s", "key z down");
   fd = open(output, O_WRONLY | O_CREAT, 0777);
   if(fd < 0){
     perror("error opening ");

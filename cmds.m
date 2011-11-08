@@ -34,6 +34,7 @@ static const NSDictionary * find_eve_window(void){
     }
   }
   if(i==arrayCount){
+    NSLog(@"eve window not found!\n");
     entry = nil;
   }
   [pool drain];
@@ -53,7 +54,6 @@ int handle_screenshot(int fd, char * arg){
 
   [pool drain];
   if(entry == nil){
-    NSLog(@"eve window not found!\n");
     return -1;
   }else{
     return 0;
@@ -61,5 +61,26 @@ int handle_screenshot(int fd, char * arg){
 }
 
 int handle_keyevent(int fd, char *arg){
-  return 0;
+  id pool=[NSAutoreleasePool new];
+  int ret = -1;
+  CGEventRef key_e;
+  CGKeyCode c = (CGKeyCode)0;
+
+  const NSDictionary *entry = find_eve_window();
+  if(entry == nil){
+    goto  handle_keyevent_exit;
+  }
+  pid_t pid = [[entry objectForKey: @"kCGWindowOwnerPID"] unsignedIntValue];
+  ProcessSerialNumber psn;
+  if(GetProcessForPID (pid, &psn) < 0){
+    goto  handle_keyevent_exit;
+  }
+  key_e = CGEventCreateKeyboardEvent (NULL, c, true);
+  CGEventPostToPSN(&psn, key_e);
+  key_e = CGEventCreateKeyboardEvent (NULL, c, false);
+  CGEventPostToPSN(&psn, key_e);
+  
+ handle_keyevent_exit:
+  [pool drain];
+  return ret;
 }
