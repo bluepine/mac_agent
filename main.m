@@ -28,6 +28,7 @@ struct cmd_entry{
 static struct cmd_entry cmd_list[]={
   {"screenshot", handle_screenshot},
   {"key", handle_key_event},
+  {"mouse", handle_mouse_event},
   {NULL, NULL}
 };
 
@@ -100,15 +101,29 @@ int main (int argc, const char * argv[]){
     perror("error opening ");
     return -1;
   }
-  sprintf(cmd_buf, "%s", "key,EVE Online,z,down");
+  // sprintf(cmd_buf, "%s", "key,EVE Online,z,down");
+  // handle_cmd(fd, cmd_buf);
+  // sprintf(cmd_buf, "%s", "key,EVE Online,z,up");
+  // handle_cmd(fd, cmd_buf);
+  // sprintf(cmd_buf, "%s", "key,EVE Online,enter,down");
+  // handle_cmd(fd, cmd_buf);
+  // sprintf(cmd_buf, "%s", "key,EVE Online,enter,up");
+  // handle_cmd(fd, cmd_buf);
+  sprintf(cmd_buf, "%s", "screenshot,EVE Online,1.png");
   handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "key,EVE Online,z,up");
+  sprintf(cmd_buf, "%s", "mouse,EVE Online,move,left,150,150");
   handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "key,EVE Online,enter,down");
+  sprintf(cmd_buf, "%s", "mouse,EVE Online,down,left,150,150");
   handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "key,EVE Online,enter,up");
+  sprintf(cmd_buf, "%s", "mouse,EVE Online,drag,left,250,250");
   handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "screenshot,EVE Online,eee.png");
+  sprintf(cmd_buf, "%s", "mouse,EVE Online,up,left,250,250");
+  handle_cmd(fd, cmd_buf);
+  sprintf(cmd_buf, "%s", "key,EVE Online,f1,down");
+  handle_cmd(fd, cmd_buf);
+  sprintf(cmd_buf, "%s", "key,EVE Online,f1,up");
+  handle_cmd(fd, cmd_buf);
+  sprintf(cmd_buf, "%s", "screenshot,EVE Online,2.png");
   handle_cmd(fd, cmd_buf);
   close(fd);
   return 0;

@@ -8,6 +8,8 @@ def exec_cmd(s, cmd):
         r = s.recv(1024)
         if len(r) == 0:
             break
+        if r[-1] == '!':
+            return None
         data = data+r
         if r[-1] == '}':
             break

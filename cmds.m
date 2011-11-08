@@ -73,6 +73,14 @@ static struct key_table_entry special_key_table[] = {
   {"cmd", (CGKeyCode)55},
   {"option", (CGKeyCode)58},
   {"enter", (CGKeyCode)76},
+  {"f1", (CGKeyCode)122},
+  {"f2", (CGKeyCode)120},
+  {"f3", (CGKeyCode)99},
+  {"f4", (CGKeyCode)118},
+  {"f5", (CGKeyCode)96},
+  {"f6", (CGKeyCode)97},
+  {"f7", (CGKeyCode)98},
+  {"f8", (CGKeyCode)100},
   {0, UINT16_MAX}
 };
 
@@ -114,6 +122,9 @@ int handle_key_event(int fd, int argc, const char **argv){
   }
 
   key_e = CGEventCreateKeyboardEvent (NULL, code, down);
+  if(key_e == NULL){
+    goto handle_key_event_exit;
+  }
   CGEventPostToPSN(&psn, key_e);
   ret = 0;
  handle_key_event_exit:
@@ -121,6 +132,66 @@ int handle_key_event(int fd, int argc, const char **argv){
   return ret;
 }
 
+//mouse down, up, move, drag
+//window name,down/up/move/drag,left/right,x,y
 int handle_mouse_event(int fd, int argc, const char **argv){
-  return 0;
+  if(argc!=5){
+    return -1;
+  }
+  id pool=[NSAutoreleasePool new];
+  int ret = -1;
+  const NSDictionary *entry = find_window(argv[0]);
+  if(entry == nil){
+    goto  handle_mouse_event_exit;
+  }
+  pid_t pid = [[entry objectForKey: @"kCGWindowOwnerPID"] unsignedIntValue];
+  ProcessSerialNumber psn;
+  if(GetProcessForPID (pid, &psn) < 0){
+    goto  handle_mouse_event_exit;
+  }
+  const NSDictionary *bound = [entry objectForKey: @"kCGWindowBounds"];
+  if(bound == nil){
+    goto  handle_mouse_event_exit;
+  }
+
+  CGEventType mouseType;
+  CGPoint mouseCursorPosition;
+  CGMouseButton mouseButton;
+  if(!strcmp(argv[1], "down")){
+    mouseType = kCGEventOtherMouseDown;
+  }else if(!strcmp(argv[1], "up")){
+    mouseType = kCGEventOtherMouseUp;
+  }else if(!strcmp(argv[1], "drag")){
+    mouseType = kCGEventOtherMouseDragged;
+  }else if(!strcmp(argv[1], "move")){
+    mouseType = kCGEventMouseMoved;
+  }else{
+    goto handle_mouse_event_exit;
+  }
+  
+  if(!strcmp(argv[2], "left")){
+    mouseButton = kCGMouseButtonLeft;
+  }else if(!strcmp(argv[2], "right")){
+    mouseButton = kCGMouseButtonRight;
+  }else{
+    goto handle_mouse_event_exit;
+  }
+  
+  mouseCursorPosition.x = (CGFloat)atoi(argv[3])+(CGFloat)[[bound objectForKey: @"X"] floatValue];
+  mouseCursorPosition.y = (CGFloat)atoi(argv[4])+(CGFloat)[[bound objectForKey: @"Y"] floatValue];
+  NSLog(@"%d, %f, %f\n", mouseType, (double)(mouseCursorPosition.x), (double)(mouseCursorPosition.y));
+  CGEventRef m_e = CGEventCreateMouseEvent(NULL, mouseType, mouseCursorPosition, mouseButton);
+  if(m_e == NULL){
+    goto  handle_mouse_event_exit;
+  }
+  if(SetFrontProcess(&psn)){
+    goto  handle_mouse_event_exit;
+  }
+  CGEventPost(kCGHIDEventTap, m_e);
+  usleep(20000);
+  //  CGEventPostToPSN(&psn, m_e);//why is this not working?
+  ret = 0;  
+ handle_mouse_event_exit:
+  [pool drain];
+  return ret;
 }
