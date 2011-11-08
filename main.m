@@ -15,59 +15,100 @@
  */
 
 #import <Cocoa/Cocoa.h>
-#import <Foundation/Foundation.h>
+#import "cmds.h"
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
 
-#define NSLog(FORMAT, ...) printf("%s", [[NSString stringWithFormat:FORMAT, ##__VA_ARGS__] UTF8String]);
+struct cmd_entry{
+  const char * cmd;
+  int (*handler)(int fd, char * args);
+};
 
-NSString *kWindowNameKey = @"kCGWindowName";
+static struct cmd_entry cmd_list[]={
+  {"screenshot", handle_screenshot},
+  {NULL, NULL}
+};
 
-void print(const NSDictionary *map ) {
-  NSEnumerator *enumerator = [map keyEnumerator];
-  id key;
-  while ( (key = [enumerator nextObject]) ) {
-    id obj = [map objectForKey: key];
-    NSLog( @"%@ => %@:%@\n",
-	   [key description],
-	   [obj description],
-	   [[obj class] description]);
-
-  }
+static void error(const char *msg)
+{
+  perror(msg);
+  exit(1);
 }
 
-void CGImageWriteToFile(CGImageRef image, NSString *path) {
-    CFURLRef url = (CFURLRef)[NSURL fileURLWithPath:path];
-    CGImageDestinationRef destination = CGImageDestinationCreateWithURL(url, kUTTypePNG, 1, NULL);
-    CGImageDestinationAddImage(destination, image, nil);
-
-    bool success = CGImageDestinationFinalize(destination);
-    if (!success) {
-        NSLog(@"Failed to write image to %@", path);
+static int handle_cmd(int fd, char * cmd){
+  char *token, *string;
+  int i;
+  printf("cmd %s received\n", cmd);
+  string = cmd;
+  token = strsep(&string, " ");
+  if(token == NULL){
+    error("wrong command");      
+  }
+  if(strlen(token)==0){
+    return -1;
+  }
+  if(!strcmp(token, "quit")){
+    return 1;
+  }
+  for(i=0; cmd_list[i].cmd; i++){
+    if(!strcmp(token, cmd_list[i].cmd)){
+      write(fd, "{", 1);
+      int ret = cmd_list[i].handler(fd, string);
+      write(fd, "}", 1);
+      return ret;
     }
-
-    CFRelease(destination);
+  }
+  printf("cmd %s not supported\n", token);
+  return 0;
 }
 
 int main (int argc, const char * argv[])
 {
-  id pool=[NSAutoreleasePool new];    
-  //    @autoreleasepool {
-  CGWindowListOption listOptions = kCGWindowListOptionOnScreenOnly;//kCGWindowListOptionAll;
-  CFArrayRef windowList = CGWindowListCopyWindowInfo(listOptions, kCGNullWindowID);
-  int arrayCount = CFArrayGetCount(windowList);
-  int i;
-  for(i=0; i<arrayCount; i++){
-    const NSDictionary *entry = (NSDictionary*)CFArrayGetValueAtIndex(windowList, i);
-    NSString * wname = [entry objectForKey: kWindowNameKey];
-    if(wname &&  (NSOrderedSame==[wname compare: @"EVE Online"])){
-      NSLog(@"name: %@\n", wname);
-      print(entry);
-      CGImageRef windowImage = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow, [[entry objectForKey: (id)kCGWindowNumber]unsignedIntValue], kCGWindowImageDefault | kCGWindowImageBoundsIgnoreFraming);
-      CGImageWriteToFile(windowImage, @"eve.png");
+  int sockfd, newsockfd, portno;
+  socklen_t clilen;
+  char buffer[1024];
+  struct sockaddr_in serv_addr, cli_addr;
+  int n;
+  int tr = 1;
+  if (argc < 2) {
+    fprintf(stderr,"ERROR, no port provided\n");
+    exit(1);
+  }
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd < 0) 
+    error("ERROR opening socket");
+  bzero((char *) &serv_addr, sizeof(serv_addr));
+  portno = atoi(argv[1]);
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_port = htons(portno);
+  // kill "Address already in use" error message
+  if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&tr,sizeof(int)) == -1) {
+    perror("setsockopt");
+    exit(1);
+  }
+  if (bind(sockfd, (struct sockaddr *) &serv_addr,
+	   sizeof(serv_addr)) < 0) 
+    error("ERROR on binding");
+  listen(sockfd,5);
+  clilen = sizeof(cli_addr);
+  newsockfd = accept(sockfd, 
+		     (struct sockaddr *) &cli_addr, 
+		     &clilen);
+  if (newsockfd < 0) 
+    error("ERROR on accept");
+  while(1){
+    bzero(buffer,1023);
+    n = read(newsockfd,buffer,1023);
+    if (n < 0) error("ERROR reading from socket");
+    //    printf("Here is the message: %s\n",buffer);
+    if(handle_cmd(newsockfd, buffer)){
+      break;
     }
   }
-  // insert code here...
-  [pool drain];        
-  //    }
-  return 0;
+  close(newsockfd);
+  close(sockfd);
+  return 0; 
 }
 
