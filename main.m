@@ -65,6 +65,7 @@ static int handle_cmd(int fd, char * cmd){
   }
 
   if(!strcmp(cmd, "quit")){
+    ret = 1;
     goto handle_cmd_exit;
   }
   for(i=0; cmd_list[i].cmd; i++){
