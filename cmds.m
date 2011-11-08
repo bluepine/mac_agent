@@ -17,31 +17,49 @@
 #import "cmds.h"
 #import "utility.h"
 
-//parameter: path to store screen shot file
-int handle_screenshot(int fd, char * arg){
+static const NSDictionary * find_eve_window(void){
+  const NSDictionary *entry = nil;
+  id pool=[NSAutoreleasePool new];
   NSString *kWindowNameKey = @"kCGWindowName";
   NSString *WindowName = @"EVE Online";
-  id pool=[NSAutoreleasePool new];    
   CGWindowListOption listOptions = kCGWindowListOptionOnScreenOnly;//kCGWindowListOptionAll;
   CFArrayRef windowList = CGWindowListCopyWindowInfo(listOptions, kCGNullWindowID);
   int arrayCount = CFArrayGetCount(windowList);
   int i;
   for(i=0; i<arrayCount; i++){
-    const NSDictionary *entry = (NSDictionary*)CFArrayGetValueAtIndex(windowList, i);
+    entry = (NSDictionary*)CFArrayGetValueAtIndex(windowList, i);
     NSString * wname = [entry objectForKey: kWindowNameKey];
     if(wname &&  (NSOrderedSame==[wname compare: WindowName])){
-      //NSLog(@"name: %@\n", wname);
-      //print_dict(entry);
-      CGImageRef windowImage = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow, [[entry objectForKey: (id)kCGWindowNumber]unsignedIntValue], kCGWindowImageDefault | kCGWindowImageBoundsIgnoreFraming);
-      CGImageWriteToFile(windowImage, [ NSString stringWithUTF8String:arg ]);
       break;
     }
   }
-  [pool drain];
   if(i==arrayCount){
-    NSLog(@"window %@ not found!\n", WindowName);
+    entry = nil;
+  }
+  [pool drain];
+  return entry;
+}
+
+//parameter: path to store screen shot file
+int handle_screenshot(int fd, char * arg){
+  id pool=[NSAutoreleasePool new];    
+
+  const NSDictionary *entry = find_eve_window();
+
+  if(entry != nil){
+    CGImageRef windowImage = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow, [[entry objectForKey: (id)kCGWindowNumber]unsignedIntValue], kCGWindowImageDefault | kCGWindowImageBoundsIgnoreFraming);
+    CGImageWriteToFile(windowImage, [ NSString stringWithUTF8String:arg ]);
+  }
+
+  [pool drain];
+  if(entry == nil){
+    NSLog(@"eve window not found!\n");
     return -1;
   }else{
     return 0;
   }
+}
+
+int handle_keyevent(int fd, char *arg){
+  return 0;
 }
