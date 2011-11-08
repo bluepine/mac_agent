@@ -111,13 +111,13 @@ int main (int argc, const char * argv[]){
   // handle_cmd(fd, cmd_buf);
   sprintf(cmd_buf, "%s", "screenshot,EVE Online,1.png");
   handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "mouse,EVE Online,move,left,150,150");
+  sprintf(cmd_buf, "%s", "mouse,EVE Online,left,move,150,150");
   handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "mouse,EVE Online,down,left,150,150");
+  sprintf(cmd_buf, "%s", "mouse,EVE Online,left,down,150,150");
   handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "mouse,EVE Online,drag,left,250,250");
+  sprintf(cmd_buf, "%s", "mouse,EVE Online,left,drag,250,250");
   handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "mouse,EVE Online,up,left,250,250");
+  sprintf(cmd_buf, "%s", "mouse,EVE Online,left,up,250,250");
   handle_cmd(fd, cmd_buf);
   sprintf(cmd_buf, "%s", "key,EVE Online,f1,down");
   handle_cmd(fd, cmd_buf);

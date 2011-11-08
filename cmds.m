@@ -126,6 +126,7 @@ int handle_key_event(int fd, int argc, const char **argv){
     goto handle_key_event_exit;
   }
   CGEventPostToPSN(&psn, key_e);
+  usleep(20000);
   ret = 0;
  handle_key_event_exit:
   [pool drain];
@@ -133,7 +134,7 @@ int handle_key_event(int fd, int argc, const char **argv){
 }
 
 //mouse down, up, move, drag
-//window name,down/up/move/drag,left/right,x,y
+//window name,left/right,down/up/move/drag,x,y
 int handle_mouse_event(int fd, int argc, const char **argv){
   if(argc!=5){
     return -1;
@@ -157,22 +158,23 @@ int handle_mouse_event(int fd, int argc, const char **argv){
   CGEventType mouseType;
   CGPoint mouseCursorPosition;
   CGMouseButton mouseButton;
-  if(!strcmp(argv[1], "down")){
-    mouseType = kCGEventOtherMouseDown;
-  }else if(!strcmp(argv[1], "up")){
-    mouseType = kCGEventOtherMouseUp;
-  }else if(!strcmp(argv[1], "drag")){
-    mouseType = kCGEventOtherMouseDragged;
-  }else if(!strcmp(argv[1], "move")){
-    mouseType = kCGEventMouseMoved;
+  
+  if(!strcmp(argv[1], "left")){
+    mouseButton = kCGMouseButtonLeft;
+  }else if(!strcmp(argv[1], "right")){
+    mouseButton = kCGMouseButtonRight;
   }else{
     goto handle_mouse_event_exit;
   }
-  
-  if(!strcmp(argv[2], "left")){
-    mouseButton = kCGMouseButtonLeft;
-  }else if(!strcmp(argv[2], "right")){
-    mouseButton = kCGMouseButtonRight;
+
+  if(!strcmp(argv[2], "down")){
+    mouseType = kCGEventOtherMouseDown;
+  }else if(!strcmp(argv[2], "up")){
+    mouseType = kCGEventOtherMouseUp;
+  }else if(!strcmp(argv[2], "drag")){
+    mouseType = kCGEventOtherMouseDragged;
+  }else if(!strcmp(argv[2], "move")){
+    mouseType = kCGEventMouseMoved;
   }else{
     goto handle_mouse_event_exit;
   }
@@ -184,12 +186,20 @@ int handle_mouse_event(int fd, int argc, const char **argv){
   if(m_e == NULL){
     goto  handle_mouse_event_exit;
   }
-  if(SetFrontProcess(&psn)){
-    goto  handle_mouse_event_exit;
+  Boolean result;
+  ProcessSerialNumber front_psn;
+  GetFrontProcess(&front_psn);
+  SameProcess(&front_psn, &psn, &result);
+  if(!result){
+    if(SetFrontProcess(&psn)){
+      goto  handle_mouse_event_exit;
+    }
+    sleep(2);
   }
+  //CGEventPostToPSN(&psn, m_e);//why is this not working?
   CGEventPost(kCGHIDEventTap, m_e);
   usleep(20000);
-  //  CGEventPostToPSN(&psn, m_e);//why is this not working?
+  //sleep(2);
   ret = 0;  
  handle_mouse_event_exit:
   [pool drain];
