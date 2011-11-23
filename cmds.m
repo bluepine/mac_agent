@@ -71,7 +71,7 @@ static struct key_table_entry special_key_table[] = {
   {"shift", (CGKeyCode)56},
   {"ctrl", (CGKeyCode)59},
   {"cmd", (CGKeyCode)55},
-  {"option", (CGKeyCode)58},
+  {"alt", (CGKeyCode)58},
   {"enter", (CGKeyCode)76},
   {"f1", (CGKeyCode)122},
   {"f2", (CGKeyCode)120},
@@ -84,11 +84,25 @@ static struct key_table_entry special_key_table[] = {
   {0, UINT16_MAX}
 };
 
+struct modifier_table_entry{
+  const char * name;
+  const CGEventFlags mask;
+  int active;
+};
+
+static struct modifier_table_entry modifier_table[] = {
+  {"shift", kCGEventFlagMaskShift, 0},
+  {"ctrl", kCGEventFlagMaskControl, 0},
+  {"alt", kCGEventFlagMaskAlternate, 0},
+  {"cmd", kCGEventFlagMaskCommand, 0},
+  {0, 0}
+};
+
 int handle_key_event(int fd, int argc, const char **argv){
   if(argc != 3){
     return -1;
   }
-
+  int modifier = 0;
   id pool=[NSAutoreleasePool new];
   int ret = -1;
   BOOL down = false;
@@ -108,6 +122,16 @@ int handle_key_event(int fd, int argc, const char **argv){
   if(!strcmp("down", argv[argc-1])){
     down = true;
   }
+  for(i=0; modifier_table[i].name; i++){
+    if(!strcmp(modifier_table[i].name, argv[1])){
+      modifier = 1;
+      if(down){
+	modifier_table[i].active = 1;
+      }else{
+	modifier_table[i].active = 0;
+      }
+    }
+  }
   for(i=0; special_key_table[i].name; i++){
     if(!strcmp(special_key_table[i].name, argv[1])){
       code = special_key_table[i].code;
@@ -124,6 +148,24 @@ int handle_key_event(int fd, int argc, const char **argv){
   key_e = CGEventCreateKeyboardEvent (NULL, code, down);
   if(key_e == NULL){
     goto handle_key_event_exit;
+  }
+  if(!modifier){
+    for(i=0; modifier_table[i].name; i++){
+      if(modifier_table[i].active){
+	CGEventSetFlags(key_e, modifier_table[i].mask);      
+      }
+    }
+  }
+  NSLog(@"%d, %d\n", code, down);
+  Boolean result;
+  ProcessSerialNumber front_psn;
+  GetFrontProcess(&front_psn);
+  SameProcess(&front_psn, &psn, &result);
+  if(!result){
+    if(SetFrontProcess(&psn)){
+      goto  handle_key_event_exit;
+    }
+    sleep(2);
   }
   CGEventPostToPSN(&psn, key_e);
   usleep(20000);
