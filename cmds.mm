@@ -17,11 +17,10 @@
 #import "cmds.h"
 #import "utility.h"
 
-static const NSDictionary * find_window(const char * name){
+static const NSDictionary * find_window(NSString *WindowName){
   const NSDictionary *entry = nil;
   id pool=[NSAutoreleasePool new];
   NSString *kWindowNameKey = @"kCGWindowName";
-  NSString *WindowName = [[NSString alloc] initWithUTF8String:name];
   CGWindowListOption listOptions = kCGWindowListOptionOnScreenOnly;//kCGWindowListOptionAll;
   CFArrayRef windowList = CGWindowListCopyWindowInfo(listOptions, kCGNullWindowID);
   int arrayCount = CFArrayGetCount(windowList);
@@ -42,17 +41,15 @@ static const NSDictionary * find_window(const char * name){
 }
 
 //parameter: path to store screen shot file
-int handle_screenshot(int fd, int argc, const char **argv){
-  if(argc != 2){
-    return -1;
-  }
+int screenshot_cmd(NSString *WindowName, NSString *screenshot_path){
+
   id pool=[NSAutoreleasePool new];    
 
-  const NSDictionary *entry = find_window(argv[0]);
+  const NSDictionary *entry = find_window(WindowName);
 
   if(entry != nil){
     CGImageRef windowImage = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow, [[entry objectForKey: (id)kCGWindowNumber]unsignedIntValue], kCGWindowImageDefault | kCGWindowImageBoundsIgnoreFraming);
-    CGImageWriteToFile(windowImage, [ NSString stringWithUTF8String:argv[1] ]);
+    CGImageWriteToFile(windowImage, screenshot_path);
   }
 
   [pool drain];
@@ -64,53 +61,49 @@ int handle_screenshot(int fd, int argc, const char **argv){
 }
 
 struct key_table_entry{
-  const char * name;
+  NSString * name;
   CGKeyCode code;
 };
 static struct key_table_entry special_key_table[] = {
-  {"shift", (CGKeyCode)56},
-  {"ctrl", (CGKeyCode)59},
-  {"cmd", (CGKeyCode)55},
-  {"alt", (CGKeyCode)58},
-  {"enter", (CGKeyCode)76},
-  {"f1", (CGKeyCode)122},
-  {"f2", (CGKeyCode)120},
-  {"f3", (CGKeyCode)99},
-  {"f4", (CGKeyCode)118},
-  {"f5", (CGKeyCode)96},
-  {"f6", (CGKeyCode)97},
-  {"f7", (CGKeyCode)98},
-  {"f8", (CGKeyCode)100},
-  {0, UINT16_MAX}
+  {@"shift", (CGKeyCode)56},
+  {@"ctrl", (CGKeyCode)59},
+  {@"cmd", (CGKeyCode)55},
+  {@"alt", (CGKeyCode)58},
+  {@"enter", (CGKeyCode)76},
+  {@"f1", (CGKeyCode)122},
+  {@"f2", (CGKeyCode)120},
+  {@"f3", (CGKeyCode)99},
+  {@"f4", (CGKeyCode)118},
+  {@"f5", (CGKeyCode)96},
+  {@"f6", (CGKeyCode)97},
+  {@"f7", (CGKeyCode)98},
+  {@"f8", (CGKeyCode)100},
+  {NULL, UINT16_MAX}
 };
 
 struct modifier_table_entry{
-  const char * name;
+  NSString * name;
   const CGEventFlags mask;
   int active;
 };
 
 static struct modifier_table_entry modifier_table[] = {
-  {"shift", kCGEventFlagMaskShift, 0},
-  {"ctrl", kCGEventFlagMaskControl, 0},
-  {"alt", kCGEventFlagMaskAlternate, 0},
-  {"cmd", kCGEventFlagMaskCommand, 0},
-  {0, 0}
+  {@"shift", kCGEventFlagMaskShift, 0},
+  {@"ctrl", kCGEventFlagMaskControl, 0},
+  {@"alt", kCGEventFlagMaskAlternate, 0},
+  {@"cmd", kCGEventFlagMaskCommand, 0},
+  {NULL, 0}
 };
 
-int handle_key_event(int fd, int argc, const char **argv){
-  if(argc != 3){
-    return -1;
-  }
+int key_cmd(NSString *WindowName, NSString *key, const key_event::type event){
   int modifier = 0;
   id pool=[NSAutoreleasePool new];
   int ret = -1;
-  BOOL down = false;
   CGEventRef key_e;
   int i;
   CGKeyCode code;
   pid_t pid = 0;
-  const NSDictionary *entry = find_window(argv[0]);
+  const NSDictionary *entry = find_window(WindowName);
   if(entry == nil){
     goto  handle_key_event_exit;
   }
@@ -119,11 +112,8 @@ int handle_key_event(int fd, int argc, const char **argv){
   if(GetProcessForPID (pid, &psn) < 0){
     goto  handle_key_event_exit;
   }
-  if(!strcmp("down", argv[argc-1])){
-    down = true;
-  }
   for(i=0; modifier_table[i].name; i++){
-    if(!strcmp(modifier_table[i].name, argv[1])){
+    if(modifier_table[i].name isEqualToString: key){
       modifier = 1;
       if(down){
 	modifier_table[i].active = 1;
@@ -133,7 +123,7 @@ int handle_key_event(int fd, int argc, const char **argv){
     }
   }
   for(i=0; special_key_table[i].name; i++){
-    if(!strcmp(special_key_table[i].name, argv[1])){
+    if(special_key_table[i].name isEqualToString: key){
       code = special_key_table[i].code;
       break;
     }

@@ -1,4 +1,5 @@
 #import <Cocoa/Cocoa.h>
-int handle_screenshot(int fd, int argc, const char ** argv);
-int handle_key_event(int fd, int argc, const char ** argv);
+#include "mac_agent.h"
+int screenshot_cmd(NSString *WindowName);
+int key_cmd(NSString *WindowName, NSString *ns_key, const key_event::type event);
 int handle_mouse_event(int fd, int argc, const char **argv);

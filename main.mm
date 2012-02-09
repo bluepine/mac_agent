@@ -14,168 +14,68 @@
  * limitations under the License.
  */
 
+// #import <Cocoa/Cocoa.h>
+// #include <sys/types.h> 
+// #include <sys/socket.h>
+// #include <netinet/in.h>
+
 #import <Cocoa/Cocoa.h>
 #import "cmds.h"
-#include <sys/types.h> 
-#include <sys/socket.h>
-#include <netinet/in.h>
 
-struct cmd_entry{
-  const char * cmd;
-  int (*handler)(int fd, int argc, const char ** argv);
+#include "mac_agent.h"
+#include <protocol/TBinaryProtocol.h>
+#include <server/TSimpleServer.h>
+#include <transport/TServerSocket.h>
+#include <transport/TBufferTransports.h>
+
+using namespace ::apache::thrift;
+using namespace ::apache::thrift::protocol;
+using namespace ::apache::thrift::transport;
+using namespace ::apache::thrift::server;
+
+using boost::shared_ptr;
+
+class mac_agentHandler : virtual public mac_agentIf {
+ public:
+  mac_agentHandler() {
+    // Your initialization goes here
+  }
+
+  int32_t handle_mouse_cmd(const std::string& window_name, const mouse_button::type button, const mouse_event::type event, const int32_t x, const int32_t y) {
+    // Your implementation goes here
+    printf("handle_mouse_cmd\n");
+  }
+
+  int32_t handle_key_cmd(const std::string& window_name, const std::string& key, const key_event::type event) {
+    NSString *WindowName = [[NSString alloc] initWithUTF8String:window_name.c_str()];
+    NSString *ns_key = [[NSString alloc] initWithUTF8String:window_name.c_str()];
+    int ret = key_cmd(WindowName, ns_key, event);
+    [WindowName release];
+    [ns_key release];
+    return ret;
+  }
+
+  int32_t handle_screenshot_cmd(const std::string& window_name, const std::string& screenshot_path) {
+    // Your implementation goes here
+    NSString *WindowName = [[NSString alloc] initWithUTF8String:window_name.c_str()];
+    NSString *path = [[NSString alloc] initWithUTF8String:screenshot_path.c_str()];
+    int ret = screen_cmd(WindowName, path);
+    [WindowName release];
+    [path release];
+    return ret;
+  }
+
 };
 
-static struct cmd_entry cmd_list[]={
-  {"screenshot", handle_screenshot},
-  {"key", handle_key_event},
-  {"mouse", handle_mouse_event},
-  {NULL, NULL}
-};
+int main(int argc, char **argv) {
+  int port = 9090;
+  shared_ptr<mac_agentHandler> handler(new mac_agentHandler());
+  shared_ptr<TProcessor> processor(new mac_agentProcessor(handler));
+  shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
+  shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+  shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
 
-static void error(const char *msg)
-{
-  perror(msg);
-  exit(1);
-}
-
-static int handle_cmd(int fd, char * cmd){
-  const char **argv;
-  int i, j;
-  int argc;
-  int ret = -1;
-  printf("cmd %s received\n", cmd);
-  argc = 0;
-  for(i=0; cmd[i]; i++){
-    if(cmd[i]==','){
-      argc++;
-    }
-  }
-  if(argc>0){
-    argv = (const char**)malloc(sizeof(char *)*argc);
-    j = 0;
-    for(i=0; cmd[i]; i++){
-      if(cmd[i]==','){
-	cmd[i]=0;
-	argv[j]=&(cmd[i+1]);
-	j++;
-      }
-    }
-  }else{
-    argv=0;
-  }
-
-  if(!strcmp(cmd, "quit")){
-    ret = 1;
-    goto handle_cmd_exit;
-  }
-  for(i=0; cmd_list[i].cmd; i++){
-    if(!strcmp(cmd, cmd_list[i].cmd)){
-      write(fd, "{", 1);
-      ret = cmd_list[i].handler(fd, argc, argv);
-      if(ret){
-	write(fd, "!", 1);
-      }else{
-	write(fd, "}", 1);
-      }
-      break;
-    }
-  }
-  if(!cmd_list[i].cmd){
-    printf("cmd %s not supported\n", cmd);
-    goto handle_cmd_exit;
-  }
- handle_cmd_exit:
-  if(argv){
-    free(argv);
-  }
-  return ret;
-}
-
-int test_main (int argc, const char * argv[]){
-  int fd;
-  char cmd_buf[1024];
-  const char *output = "output";
-  //const char * output = "output";
-  //sprintf(cmd_buf, "%s", "screenshot e.png");
-  fd = open(output, O_WRONLY | O_CREAT, 0777);
-  if(fd < 0){
-    perror("error opening ");
-    return -1;
-  }
-  // sprintf(cmd_buf, "%s", "key,EVE Online,z,down");
-  // handle_cmd(fd, cmd_buf);
-  // sprintf(cmd_buf, "%s", "key,EVE Online,z,up");
-  // handle_cmd(fd, cmd_buf);
-  // sprintf(cmd_buf, "%s", "key,EVE Online,enter,down");
-  // handle_cmd(fd, cmd_buf);
-  // sprintf(cmd_buf, "%s", "key,EVE Online,enter,up");
-  // handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "screenshot,EVE Online,1.png");
-  handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "mouse,EVE Online,left,move,150,150");
-  handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "mouse,EVE Online,left,down,150,150");
-  handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "mouse,EVE Online,left,drag,250,250");
-  handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "mouse,EVE Online,left,up,250,250");
-  handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "key,EVE Online,f1,down");
-  handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "key,EVE Online,f1,up");
-  handle_cmd(fd, cmd_buf);
-  sprintf(cmd_buf, "%s", "screenshot,EVE Online,2.png");
-  handle_cmd(fd, cmd_buf);
-  close(fd);
+  TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
+  server.serve();
   return 0;
 }
-
-int main (int argc, const char * argv[])
-{
-  int sockfd, newsockfd, portno;
-  socklen_t clilen;
-  char buffer[1024];
-  struct sockaddr_in serv_addr, cli_addr;
-  int n;
-  int tr = 1;
-  if (argc < 2) {
-    fprintf(stderr,"ERROR, no port provided\n");
-    exit(1);
-  }
-  sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockfd < 0) 
-    error("ERROR opening socket");
-  bzero((char *) &serv_addr, sizeof(serv_addr));
-  portno = atoi(argv[1]);
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr.s_addr = INADDR_ANY;
-  serv_addr.sin_port = htons(portno);
-  // kill "Address already in use" error message
-  if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&tr,sizeof(int)) == -1) {
-    perror("setsockopt");
-    exit(1);
-  }
-  if (bind(sockfd, (struct sockaddr *) &serv_addr,
-	   sizeof(serv_addr)) < 0) 
-    error("ERROR on binding");
-  listen(sockfd,5);
-  clilen = sizeof(cli_addr);
-  newsockfd = accept(sockfd, 
-		     (struct sockaddr *) &cli_addr, 
-		     &clilen);
-  if (newsockfd < 0) 
-    error("ERROR on accept");
-  while(1){
-    bzero(buffer,1023);
-    n = read(newsockfd,buffer,1023);
-    if (n < 0) error("ERROR reading from socket");
-    //    printf("Here is the message: %s\n",buffer);
-    if(handle_cmd(newsockfd, buffer)){
-      break;
-    }
-  }
-  close(newsockfd);
-  close(sockfd);
-  return 0; 
-}
-
