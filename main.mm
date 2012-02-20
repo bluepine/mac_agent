@@ -18,8 +18,9 @@
 // #include <sys/types.h> 
 // #include <sys/socket.h>
 // #include <netinet/in.h>
-
+#include <iostream>
 #import <Cocoa/Cocoa.h>
+#include <signal.h>
 #import "cmds.h"
 
 #include "mac_agent.h"
@@ -70,15 +71,28 @@ class mac_agentHandler : virtual public mac_agentIf {
 
 };
 
-int main(int argc, char **argv) {
-  int port = 9090;
-  shared_ptr<mac_agentHandler> handler(new mac_agentHandler());
-  shared_ptr<TProcessor> processor(new mac_agentProcessor(handler));
-  shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
-  shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
-  shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
 
-  TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
-  server.serve();
+int port = 9090;
+shared_ptr<mac_agentHandler> handler(new mac_agentHandler());
+shared_ptr<TProcessor> processor(new mac_agentProcessor(handler));
+shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
+shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
+
+TSimpleServer SERVER(processor, serverTransport, transportFactory, protocolFactory);
+
+void sighandler(int sig)
+{
+  std::cout<< "Signal " << sig << " caught..." << std::endl;
+  std::cout<< "stopping server" << std::endl;
+  SERVER.stop();
+}
+
+int main(int argc, char **argv) {
+  std::cout << "server started at port " << port << std::endl;
+  signal(SIGABRT, &sighandler);
+  signal(SIGTERM, &sighandler);
+  signal(SIGINT, &sighandler);
+  SERVER.serve();
   return 0;
 }
