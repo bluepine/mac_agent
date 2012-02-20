@@ -17,7 +17,7 @@
 #import "cmds.h"
 #import "utility.h"
 
-static const NSDictionary * find_window(NSString *WindowName){
+static const NSDictionary * find_window(const NSString *WindowName){
   const NSDictionary *entry = nil;
   id pool=[NSAutoreleasePool new];
   NSString *kWindowNameKey = @"kCGWindowName";
@@ -41,7 +41,7 @@ static const NSDictionary * find_window(NSString *WindowName){
 }
 
 //parameter: path to store screen shot file
-int screenshot_cmd(NSString *WindowName, NSString *screenshot_path){
+int handle_screenshot_cmd_cocoa(const NSString *WindowName, const NSString *screenshot_path){
 
   id pool=[NSAutoreleasePool new];    
 
@@ -95,7 +95,7 @@ static struct modifier_table_entry modifier_table[] = {
   {NULL, 0}
 };
 
-int key_cmd(NSString *WindowName, NSString *key, const key_event::type event){
+int handle_key_cmd_cocoa(const NSString *WindowName, const NSString *key, const key_event::type event){
   int modifier = 0;
   id pool=[NSAutoreleasePool new];
   int ret = -1;
@@ -113,9 +113,9 @@ int key_cmd(NSString *WindowName, NSString *key, const key_event::type event){
     goto  handle_key_event_exit;
   }
   for(i=0; modifier_table[i].name; i++){
-    if(modifier_table[i].name isEqualToString: key){
+    if([modifier_table[i].name isEqualToString: key]){
       modifier = 1;
-      if(down){
+      if(key_event::KeyDown == event){
 	modifier_table[i].active = 1;
       }else{
 	modifier_table[i].active = 0;
@@ -123,19 +123,19 @@ int key_cmd(NSString *WindowName, NSString *key, const key_event::type event){
     }
   }
   for(i=0; special_key_table[i].name; i++){
-    if(special_key_table[i].name isEqualToString: key){
+    if([special_key_table[i].name isEqualToString: key]){
       code = special_key_table[i].code;
       break;
     }
   }
   if(!special_key_table[i].name){
-    code = keyCodeForChar(argv[1][0]);
+    code = keyCodeForChar([key characterAtIndex: 0]);
     if(code == UINT16_MAX){
       goto handle_key_event_exit;
     }
   }
 
-  key_e = CGEventCreateKeyboardEvent (NULL, code, down);
+  key_e = CGEventCreateKeyboardEvent (NULL, code, (key_event::KeyDown == event));
   if(key_e == NULL){
     goto handle_key_event_exit;
   }
@@ -146,7 +146,7 @@ int key_cmd(NSString *WindowName, NSString *key, const key_event::type event){
       }
     }
   }
-  NSLog(@"%d, %d\n", code, down);
+  NSLog(@"%d, %d\n", code, (key_event::KeyDown == event));
   Boolean result;
   ProcessSerialNumber front_psn;
   GetFrontProcess(&front_psn);
@@ -167,18 +167,15 @@ int key_cmd(NSString *WindowName, NSString *key, const key_event::type event){
 
 //mouse down, up, move, drag
 //window name,left/right,down/up/move/drag,x,y
-int handle_mouse_event(int fd, int argc, const char **argv){
+int handle_mouse_cmd_cocoa(const NSString *WindowName, const mouse_button::type button, const mouse_event::type event, const int32_t x, const int32_t y){
   CGEventRef m_e = NULL;
   const NSDictionary *bound = NULL;
   ProcessSerialNumber psn;
   pid_t pid = 0;
   int ret = -1;
-  if(argc!=5){
-    return -1;
-  }
   id pool=[NSAutoreleasePool new];
 
-  const NSDictionary *entry = find_window(argv[0]);
+  const NSDictionary *entry = find_window(WindowName);
   if(entry == nil){
     goto  handle_mouse_event_exit;
   }
@@ -196,28 +193,28 @@ int handle_mouse_event(int fd, int argc, const char **argv){
   CGPoint mouseCursorPosition;
   CGMouseButton mouseButton;
   
-  if(!strcmp(argv[1], "left")){
+  if(mouse_button::MouseButtonLeft == button){
     mouseButton = kCGMouseButtonLeft;
-  }else if(!strcmp(argv[1], "right")){
+  }else if(mouse_button::MouseButtonRight == button){
     mouseButton = kCGMouseButtonRight;
   }else{
     goto handle_mouse_event_exit;
   }
 
-  if(!strcmp(argv[2], "down")){
+  if(mouse_event::MouseDown == event){
     mouseType = kCGEventOtherMouseDown;
-  }else if(!strcmp(argv[2], "up")){
+  }else if(mouse_event::MouseUp == event){
     mouseType = kCGEventOtherMouseUp;
-  }else if(!strcmp(argv[2], "drag")){
+  }else if(mouse_event::MouseDragged == event){
     mouseType = kCGEventOtherMouseDragged;
-  }else if(!strcmp(argv[2], "move")){
+  }else if(mouse_event::MouseMoved == event){
     mouseType = kCGEventMouseMoved;
   }else{
     goto handle_mouse_event_exit;
   }
   
-  mouseCursorPosition.x = (CGFloat)atoi(argv[3])+(CGFloat)[[bound objectForKey: @"X"] floatValue];
-  mouseCursorPosition.y = (CGFloat)atoi(argv[4])+(CGFloat)[[bound objectForKey: @"Y"] floatValue];
+  mouseCursorPosition.x = (CGFloat)x+(CGFloat)[[bound objectForKey: @"X"] floatValue];
+  mouseCursorPosition.y = (CGFloat)y+(CGFloat)[[bound objectForKey: @"Y"] floatValue];
   //NSLog(@"%d, %f, %f\n", mouseType, (double)(mouseCursorPosition.x), (double)(mouseCursorPosition.y));
   m_e = CGEventCreateMouseEvent(NULL, mouseType, mouseCursorPosition, mouseButton);
   if(m_e == NULL){

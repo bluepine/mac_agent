@@ -43,13 +43,16 @@ class mac_agentHandler : virtual public mac_agentIf {
 
   int32_t handle_mouse_cmd(const std::string& window_name, const mouse_button::type button, const mouse_event::type event, const int32_t x, const int32_t y) {
     // Your implementation goes here
-    printf("handle_mouse_cmd\n");
+    const NSString *WindowName = [[NSString alloc] initWithUTF8String:window_name.c_str()];
+    int ret = handle_mouse_cmd_cocoa(WindowName, button, event, x, y);
+    [WindowName release];
+    return ret;
   }
 
   int32_t handle_key_cmd(const std::string& window_name, const std::string& key, const key_event::type event) {
     NSString *WindowName = [[NSString alloc] initWithUTF8String:window_name.c_str()];
     NSString *ns_key = [[NSString alloc] initWithUTF8String:window_name.c_str()];
-    int ret = key_cmd(WindowName, ns_key, event);
+    int ret = handle_key_cmd_cocoa(WindowName, ns_key, event);
     [WindowName release];
     [ns_key release];
     return ret;
@@ -59,7 +62,7 @@ class mac_agentHandler : virtual public mac_agentIf {
     // Your implementation goes here
     NSString *WindowName = [[NSString alloc] initWithUTF8String:window_name.c_str()];
     NSString *path = [[NSString alloc] initWithUTF8String:screenshot_path.c_str()];
-    int ret = screen_cmd(WindowName, path);
+    int ret = handle_screenshot_cmd_cocoa(WindowName, path);
     [WindowName release];
     [path release];
     return ret;
