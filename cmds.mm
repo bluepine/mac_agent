@@ -21,15 +21,32 @@ static const NSDictionary * find_window(const NSString *WindowName){
   const NSDictionary *entry = nil;
   id pool=[NSAutoreleasePool new];
   NSString *kWindowNameKey = @"kCGWindowName";
+  NSString *kWindowOwnerNameKey = @"kCGWindowOwnerName";
   CGWindowListOption listOptions = kCGWindowListOptionOnScreenOnly;//kCGWindowListOptionAll;
+  //CGWindowListOption listOptions = kCGWindowListExcludeDesktopElements;
   CFArrayRef windowList = CGWindowListCopyWindowInfo(listOptions, kCGNullWindowID);
   int arrayCount = CFArrayGetCount(windowList);
   int i;
   for(i=0; i<arrayCount; i++){
     entry = (NSDictionary*)CFArrayGetValueAtIndex(windowList, i);
+    NSLog(@"%@\n", entry);
+
     NSString * wname = [entry objectForKey: kWindowNameKey];
+    NSLog(@"%@\n", wname);
     if(wname &&  (NSOrderedSame==[wname compare: WindowName])){
       break;
+    }
+  }
+  if(i==arrayCount){
+    for(i=0; i<arrayCount; i++){
+      entry = (NSDictionary*)CFArrayGetValueAtIndex(windowList, i);
+      NSLog(@"%@\n", entry);
+
+      NSString * wname = [entry objectForKey: kWindowOwnerNameKey];
+      NSLog(@"%@\n", wname);
+      if(wname &&  (NSOrderedSame==[wname compare: WindowName])){
+	break;
+      }
     }
   }
   if(i==arrayCount){
